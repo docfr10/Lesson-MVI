@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lesson_mvi.mvi.NotesEffect
 import com.example.lesson_mvi.mvi.NotesIntent
+import com.example.lesson_mvi.mvi.NotesReducer
+import com.example.lesson_mvi.mvi.NotesResult
 import com.example.lesson_mvi.mvi.NotesState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,31 +15,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class NotesViewModel : ViewModel() {
-    private val _state = MutableStateFlow(value = NotesState())
-    val state = _state.asStateFlow()
+    private val _notesState = MutableStateFlow(value = NotesState())
+    val notesState = _notesState.asStateFlow()
 
     private val _effect = MutableSharedFlow<NotesEffect>()
     val effect = _effect.asSharedFlow()
 
     fun onIntent(intent: NotesIntent) {
         when (intent) {
-            is NotesIntent.ChangeText -> reduce { copy(text = intent.value) }
-
             is NotesIntent.AddNote -> addNote()
 
-            is NotesIntent.DeleteNote -> {
-                val current = _state.value.notes.toMutableList()
+            is NotesIntent.ChangeText -> dispatch(result = NotesResult.TextChanged(value = intent.value))
 
-                if (intent.index in current.indices) {
-                    current.removeAt(intent.index)
-                    reduce { copy(notes = current) }
-                }
-            }
+            is NotesIntent.DeleteNote -> dispatch(result = NotesResult.NoteDeleted(index = intent.index))
         }
     }
 
     private fun addNote() {
-        val text = _state.value.text.trim()
+        val text = notesState.value.text.trim()
 
         if (text.isBlank()) {
             sendEffect(NotesEffect.ShowMessage(message = "Введите текст заметки"))
@@ -45,26 +40,16 @@ class NotesViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            reduce { copy(isLoading = true) }
-
-            // Искусственная задержка для демонстрации состояния загрузки
+            dispatch(result = NotesResult.LoadingChanged(value = true))
             delay(timeMillis = 300)
-
-            reduce {
-                copy(
-                    isLoading = false,
-                    text = "",
-                    notes = notes + text
-                )
-            }
+            dispatch(result = NotesResult.NoteAdded(value = text))
         }
     }
 
-    private fun reduce(block: NotesState.() -> NotesState) {
-        _state.value = _state.value.block()
+    private fun dispatch(result: NotesResult) {
+        _notesState.value = NotesReducer.reduce(state = notesState.value, result = result)
     }
 
     private fun sendEffect(effect: NotesEffect) =
         viewModelScope.launch { _effect.emit(value = effect) }
-
 }

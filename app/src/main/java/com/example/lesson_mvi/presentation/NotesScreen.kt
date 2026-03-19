@@ -38,7 +38,7 @@ import com.example.lesson_mvi.mvi.NotesIntent
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen(notesViewModel: NotesViewModel = viewModel()) {
-    val notesState = notesViewModel.state.collectAsStateWithLifecycle()
+    val notesState = notesViewModel.notesState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(key1 = Unit) {
